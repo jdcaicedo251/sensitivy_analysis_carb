@@ -1,0 +1,82 @@
+#### Resutls mapping 
+carb_mode_mapping:
+    DRIVEALONEFREE: Drive Alone
+    DRIVEALONEPAY: Drive Alone
+    SHARED2FREE: Shared Ride
+    SHARED3FREE: Shared Ride
+    SHARED2PAY: Shared Ride
+    SHARED3PAY: Shared Ride
+    WALK: Walk
+    BIKE: Bike
+    WALK_HVY: Public Transit
+    WALK_LOC: Public Transit
+    WALK_EXP: Public Transit
+    WALK_COM: Public Transit
+    WALK_LRF: Public Transit
+    DRIVE_HVY: Public Transit
+    DRIVE_LOC: Public Transit
+    DRIVE_EXP: Public Transit
+    DRIVE_COM: Public Transit
+    DRIVE_LRF: Public Transit
+    TNC_SINGLE: TNC - Ride Alone
+    TNC_SHARED: TNC - Pooled
+    TAXI: TNC - Ride Alone
+    
+mode_index_mapping:
+    DRIVEALONEFREE: 0
+    DRIVEALONEPAY: 1
+    SHARED2FREE: 2
+    SHARED3FREE: 3
+    SHARED2PAY: 4
+    SHARED3PAY: 5
+    WALK: 6
+    BIKE: 7
+    WALK_HVY: 8
+    WALK_LOC: 9
+    WALK_EXP: 10
+    WALK_COM: 11
+    WALK_LRF: 12
+    DRIVE_HVY: 13
+    DRIVE_LOC: 14
+    DRIVE_EXP: 15
+    DRIVE_COM: 16
+    DRIVE_LRF: 17
+    TNC_SINGLE: 0 #Time simular to Drive Alone Free
+    TNC_SHARED: 0 #Time simular to Drive Alone Free
+    TAXI: 0 #Time simular to Drive Alone Free
+    
+driving_access_mode_index_mapping:
+    DRIVEALONEFREE: 5
+    DRIVEALONEPAY: 5
+    SHARED2FREE: 5
+    SHARED3FREE: 5
+    SHARED2PAY: 5
+    SHARED3PAY: 5
+    WALK: 5
+    BIKE: 5
+    WALK_HVY: 5
+    WALK_LOC: 5
+    WALK_EXP: 5
+    WALK_COM: 5
+    WALK_LRF: 5
+    DRIVE_HVY: 0
+    DRIVE_LOC: 1
+    DRIVE_EXP: 2
+    DRIVE_COM: 3
+    DRIVE_LRF: 4
+    TNC_SINGLE: 5
+    TNC_SHARED: 5
+    TAXI: 5
+    
+commute_mapping:
+    work: commute
+    atwork: commute
+    eatout: non_commute 
+    othdiscr: non_commute
+    social: non_commute
+    school: commute
+    othmaint: non_commute
+    escort: non_commute
+    shopping: non_commute
+    univ: commute
+    
