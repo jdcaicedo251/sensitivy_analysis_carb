@@ -1,14 +1,9 @@
 import os
+import re
 import sys
+import yaml
 import pandas as pd 
 import numpy as np 
-
-import matplotlib 
-import matplotlib.pyplot as plt 
-import seaborn as sns
-import yaml
-import re
-
 import openmatrix as omx
 
 import logging
@@ -26,10 +21,12 @@ def read_policy_settings():
     settings = yaml.load(a_yaml_file, Loader=yaml.FullLoader)
     return settings
 
+
 def read_yaml(path):
     a_yaml_file = open(path)
     settings = yaml.load(a_yaml_file, Loader=yaml.FullLoader)
     return settings
+
 
 def save_yaml(path, file):
     with open(path, 'w') as outfile:
@@ -253,7 +250,7 @@ def driving_skims(skims):
         
     return np.stack(time_skims)
 
-def add_results_variables(settings, trips, households, skims):
+def add_results_variables(settings, trips, households, persons, skims):
     df = trips.copy()
     
     #Skims values 
@@ -266,6 +263,9 @@ def add_results_variables(settings, trips, households, skims):
     mode_index_mapping = settings['mode_index_mapping']
     drv_acc_mode_index_mapping = settings['driving_access_mode_index_mapping']
     commute_mapping = settings['commute_mapping']
+    ivt_mapping = settings['ivt_mapping']
+    hispanic = settings['hispanic']
+    county_mapping = settings['county_mapping']
     
     df['dist_miles'] = od_matrix_lookup(df.origin, df.destination, dist)
     df['carb_mode'] = df.trip_mode.replace(carb_mode_mapping)
@@ -290,52 +290,172 @@ def add_results_variables(settings, trips, households, skims):
     df['VMT'] = df.VMT.mask(df.trip_mode.isin(['TNC_SHARED']), df.dist_miles/2.5)
     df['VMT'] = df.VMT.mask(df.trip_mode.isin(['TAXI']), df.dist_miles)
     
-    df_income = df.merge(households[['income']], how = 'left', 
-            left_on = 'household_id', right_index = True)
-
-    df_income['income_category'] = pd.cut(df_income.income, 
-                               [-np.inf, 80000, 150000, np.inf], 
-                               labels = ['low', 'middle','high'])
+    # Add Trips Variables
+    df['c_ivt'] = df['primary_purpose'].replace(ivt_mapping)
     
-    return df_income
+    
+    #Add socio-economic variables
+    df_demos = df.merge(households[['income','lcm_county_id']], how = 'left', 
+            left_on = 'household_id', right_index = True)
+    
+    df_demos = df_demos.merge(persons[['race','hispanic','value_of_time']], how = 'left', 
+                         left_on = 'person_id', right_index = True)
+
+    df_demos['income_category'] = pd.cut(df_demos.income, 
+                                         [-np.inf, 80000, 150000, np.inf],
+                                         labels = ['low', 'middle','high'])
+    
+    df_demos['c_cost'] = (0.60 * df_demos['c_ivt'])/(df_demos['value_of_time'])
+    df_demos['cs'] = df_demos['mode_choice_logsum']/(-1 * df_demos['c_cost']* (-1))
+    
+    df_demos['hispanic'] = df_demos['hispanic'].replace(hispanic)
+    df_demos['lcm_county_id'] = df_demos['lcm_county_id'].replace(county_mapping)
+    
+    ## Modify persons table 
+    df_persons = persons.copy()
+    
+    df_persons = df_persons.merge(households[['income','lcm_county_id']], 
+                                  how = 'left', 
+                                  left_on = 'household_id', 
+                                  right_index = True)
+    
+    df_persons['income_category'] = pd.cut(df_persons.income, 
+                                         [-np.inf, 80000, 150000, np.inf],
+                                         labels = ['low', 'middle','high'])
+    df_persons['lcm_county_id'] = df_persons['lcm_county_id'].replace(county_mapping)
+    df_persons['hispanic'] = df_persons['hispanic'].replace(hispanic)
+    
+    
+    return df_demos, df_persons
 
 ############################
 ## Performance Indicators ##
 ############################
 
-def average_vehicle_ownership(households):
-    return households.cars.mean() ##FIX ME: This should be 'auto_ownership'
 
-def average_commute_trip_lenght(trips):
-    return trips.groupby('carb_mode').agg({'dist_miles':'mean'})
+## VMT ##
+#########
 
-def average_traveltime_purpose(trips):
-    return trips.groupby('commute').agg({'travel_time':'mean'})
+def total_vmt(trips):
+    logging.info('Calulating total VMT...')
+    return float(trips['VMT'].sum())
 
-def average_traveltime_mode(trips):
-    return trips.groupby('carb_mode').agg({'travel_time':'mean'})
+def vmt_per_capita(trips, persons):
+    logging.info('Calulating VMT per capita...')
+    n = len(persons)
+    total = trips['VMT'].sum()
+    return float(total/n)
 
-def average_traveltime_income(trips):
-    return trips.groupby('income_category').agg({'travel_time':'mean'})
+def vmt_per_capita_income(trips, persons):
+    logging.info('Calulating VMT per capita by income...')
+    persons_segment = persons.groupby('income_category')['PNUM'].count()
+    total_segment = trips.groupby('income_category').agg({'VMT':'sum'})
+    kpi = total_segment.div(persons_segment, axis = 0)
+    return kpi.to_dict()['VMT']
+
+def vmt_per_capita_race(trips, persons):
+    logging.info('Calulating VMT per capita by race...')
+    persons_segment = persons.groupby('race')['PNUM'].count()
+    total_segment = trips.groupby('race').agg({'VMT':'sum'})
+    kpi = total_segment.div(persons_segment, axis = 0)
+    return kpi.to_dict()['VMT']
+
+def vmt_per_capita_hispanic(trips, persons):
+    logging.info('Calulating VMT per capita by hispanic...')
+    persons_segment = persons.groupby('hispanic')['PNUM'].count()
+    total_segment = trips.groupby('hispanic').agg({'VMT':'sum'})
+    kpi = total_segment.div(persons_segment, axis = 0)
+    return kpi.to_dict()['VMT']
+
+def vmt_per_capita_county(trips, persons):
+    logging.info('Calulating VMT per capita by county...')
+    persons_segment = persons.groupby('lcm_county_id')['PNUM'].count()
+    total_segment = trips.groupby('lcm_county_id').agg({'VMT':'sum'})
+    kpi = total_segment.div(persons_segment, axis = 0)
+    return kpi.to_dict()['VMT']
+
+## Consumer Surplus ##
+######################
+def total_consumer_surplus(trips):
+    logging.info('Calulating consumer surplus...')
+    return float(trips['cs'].sum())
+
+def consumer_surplus_per_capita(trips, persons):
+    logging.info('Calulating average consumer surplus...')
+    n = len(persons)
+    total = trips['cs'].sum()
+    return float(total/n)
+
+def consumer_surplus_per_capita_income(trips, persons):
+    logging.info('Calulating average consumer surplus by income...')
+    persons_segment = persons.groupby('income_category')['PNUM'].count()
+    total_segment = trips.groupby('income_category').agg({'cs':'sum'})
+    kpi = total_segment.div(persons_segment, axis = 0)
+    return kpi.to_dict()['cs']
+
+def consumer_surplus_per_capita_race(trips, persons):
+    logging.info('Calulating average consumer surplus by race...')
+    persons_segment = persons.groupby('race')['PNUM'].count()
+    total_segment = trips.groupby('race').agg({'cs':'sum'})
+    kpi = total_segment.div(persons_segment, axis = 0)
+    return kpi.to_dict()['cs']
+
+def consumer_surplus_per_capita_hispanic(trips, persons):
+    logging.info('Calulating average consumer surplus by hispanic...')
+    persons_segment = persons.groupby('hispanic')['PNUM'].count()
+    total_segment = trips.groupby('hispanic').agg({'cs':'sum'})
+    kpi = total_segment.div(persons_segment, axis = 0)
+    return kpi.to_dict()['cs']
+
+def consumer_surplus_per_capita_county(trips, persons):
+    logging.info('Calulating average consumer surplus by county...')
+    persons_segment = persons.groupby('lcm_county_id')['PNUM'].count()
+    total_segment = trips.groupby('lcm_county_id').agg({'cs':'sum'})
+    kpi = total_segment.div(persons_segment, axis = 0)
+    return kpi.to_dict()['cs']
+
+
+## others ##
+############
+def transit_ridersip(trips):
+    logging.info('Calulating transit ridership...')
+    return int(trips.carb_mode.isin(['Public Transit']).sum())
 
 def mode_shares(trips):
-    return trips.carb_mode.value_counts(normalize=True)
+    logging.info('Calulating mode shares...')
+    ms = trips.carb_mode.value_counts(normalize=True)
+    return ms.to_dict()
+
+def average_vehicle_ownership(households):
+    logging.info('Calulating vehicle ownership...')
+    return float(households.auto_ownership.mean())
 
 def seat_utilization(trips):
+    logging.info('Calulating seat utilization...')
     veh_1 = int(trips['trip_mode'].isin(['DRIVEALONEFREE','DRIVEALONEPAY']).sum())
     veh_2 = int(trips['trip_mode'].isin(['SHARED2FREE','SHARED2PAY']).sum())
     veh_3 = int(trips['trip_mode'].isin(['SHARED3FREE','SHARED3PAY']).sum())      
     return float((veh_1 + veh_2 + veh_3)/(veh_1 + veh_2/2 + veh_3/3))
 
-def transit_ridersip(trips):
-    return int(trips.carb_mode.isin(['Public Transit']).sum())
-               
-def total_vmt(trips):
-    return float(trips['VMT'].sum())
+def average_traveltime_purpose(trips):
+    logging.info('Calulating average travel time by purpose...')
+    s = trips.groupby('commute').agg({'travel_time':'mean'})
+    return s.to_dict()['travel_time']
 
-def vmt_per_capita(trips, persons):
-    population = persons.shape[0]
-    return float(total_vmt(trips)/population)
+def average_traveltime_mode(trips):
+    logging.info('Calulating average travel time by mode...')
+    s = trips.groupby('carb_mode').agg({'travel_time':'mean'})
+    return s.to_dict()['travel_time']
+
+def average_traveltime_income(trips):
+    logging.info('Calulating average travel time by income...')
+    s = trips.groupby('income_category').agg({'travel_time':'mean'})
+    return s.to_dict()['travel_time']
+
+def average_commute_trip_lenght(trips):
+    logging.info('Calulating average commute trip lenght...')
+    s = trips.groupby('carb_mode').agg({'dist_miles':'mean'})
+    return s.to_dict()['dist_miles']
 
 def get_scenario_results(policy, scenario, scenario_id):
     logging.info('Saving policy scenario resutls')
@@ -343,26 +463,95 @@ def get_scenario_results(policy, scenario, scenario_id):
     #Important tables
     households = pd.read_csv('tmp/{}/households.csv'.format(scenario), index_col = 'household_id')
     persons = pd.read_csv('tmp/{}/persons.csv'.format(scenario), index_col = 'person_id')
-    trips = pd.read_csv('tmp/{}/trips.csv'.format(scenario), index_col = 'trip_id')
+    trips = pd.read_csv('tmp/{}/trips.csv'.format(scenario), index_col = 'trip_id', 
+                       dtype = {'origin':int, 'destination':int})
     skims = omx.open_file('tmp/{}/skims.omx'.format(scenario), 'r')
     mapping = read_yaml('mapping.yaml')
     
-    df = add_results_variables(mapping, trips, households, skims)
+    trips , persons = add_results_variables(mapping, trips, households, persons, skims)
     
     dict_results = {}
     dict_results['policy'] = policy
     dict_results['name'] = scenario_id
-    dict_results['household_vehicle_ownership'] = float(average_vehicle_ownership(households))
-    dict_results['average_trip_length'] = average_commute_trip_lenght(df).to_dict()['dist_miles']
-    dict_results['average_travel_time_purpose'] = average_traveltime_purpose(df).to_dict()['travel_time']
-    dict_results['average_travel_time_mode'] = average_traveltime_mode(df).to_dict()['travel_time']
-    dict_results['average_travel_time_income'] = average_traveltime_income(df).to_dict()['travel_time']
-    dict_results['mode_shares'] = mode_shares(df).to_dict()
-    dict_results['seat_utilization'] = seat_utilization(df)
-    dict_results['transit_ridership'] = transit_ridersip(df)
-    dict_results['total_vmt'] = total_vmt(df)
-    dict_results['vmt_per_capita'] = vmt_per_capita(df, persons)
     
+    #Vmt KPIS
+    dict_results['total_vmt'] = total_vmt(trips)
+    dict_results['vmt_per_capita'] = vmt_per_capita(trips, persons)
+    dict_results['vmt_per_capita_income'] = vmt_per_capita_income(trips, persons)
+    dict_results['vmt_per_capita_race'] = vmt_per_capita_race(trips, persons)
+    dict_results['vmt_per_capita_hispanic'] = vmt_per_capita_hispanic(trips, persons)
+    dict_results['vmt_per_capita_county'] = vmt_per_capita_county(trips, persons)
+    
+    #Consumer Surplus KPIs
+    dict_results['total_cs'] = total_consumer_surplus(trips)
+    dict_results['cs_per_capita'] = consumer_surplus_per_capita(trips, persons)
+    dict_results['cs_per_capita_income'] = consumer_surplus_per_capita_income(trips, persons)
+    dict_results['cs_per_capita_race'] = consumer_surplus_per_capita_race(trips, persons)
+    dict_results['cs_per_capita_hispanic'] = consumer_surplus_per_capita_hispanic(trips, persons)
+    dict_results['cs_per_capita_county'] = consumer_surplus_per_capita_county(trips, persons)
+    
+    #Other
+    dict_results['transit_ridersip'] = transit_ridersip(trips)
+    dict_results['mode_shares'] = mode_shares(trips)
+    dict_results['average_vehicle_ownership'] = average_vehicle_ownership(households)
+    dict_results['seat_utilization'] = seat_utilization(trips)
+    dict_results['average_traveltime_purpose'] = average_traveltime_purpose(trips)
+    dict_results['average_traveltime_mode'] = average_traveltime_mode(trips)
+    dict_results['average_traveltime_income'] = average_traveltime_income(trips)
+    dict_results['average_commute_trip_lenght'] = average_commute_trip_lenght(trips)
+   
+    skims.close()
+    
+    return dict_results
+
+def kpi_pilates(scenario):
+    logging.info('Saving policy scenario resutls')
+    print(os.getcwd())
+    
+    #Important tables
+    hh_fpath = os.path.join('pilates','activitysim','output','final_households.csv')
+    pp_fpath = os.path.join('pilates','activitysim','output','final_persons.csv')
+    tt_fpath = os.path.join('pilates','activitysim','output','final_trips.csv')
+    ss_fpath = os.path.join('pilates','activitysim','data','skims.omx')
+    
+    households = pd.read_csv(hh_fpath, index_col = 'household_id')
+    persons = pd.read_csv(pp_fpath, index_col = 'person_id')
+    trips = pd.read_csv(tt_fpath, index_col = 'trip_id', dtype = {'origin':int, 'destination':int})
+    skims = omx.open_file(ss_fpath, 'r')
+    mapping = read_yaml('pilates/utils/data/mapping.yaml')
+    
+    trips , persons = add_results_variables(mapping, trips, households, persons, skims)
+    
+    dict_results = {}
+    dict_results['policy'] = scenario[3:-5]
+    dict_results['name'] = scenario
+    
+    #Vmt KPIS
+    dict_results['total_vmt'] = total_vmt(trips)
+    dict_results['vmt_per_capita'] = vmt_per_capita(trips, persons)
+    dict_results['vmt_per_capita_income'] = vmt_per_capita_income(trips, persons)
+    dict_results['vmt_per_capita_race'] = vmt_per_capita_race(trips, persons)
+    dict_results['vmt_per_capita_hispanic'] = vmt_per_capita_hispanic(trips, persons)
+    dict_results['vmt_per_capita_county'] = vmt_per_capita_county(trips, persons)
+    
+    #Consumer Surplus KPIs
+    dict_results['total_cs'] = total_consumer_surplus(trips)
+    dict_results['cs_per_capita'] = consumer_surplus_per_capita(trips, persons)
+    dict_results['cs_per_capita_income'] = consumer_surplus_per_capita_income(trips, persons)
+    dict_results['cs_per_capita_race'] = consumer_surplus_per_capita_race(trips, persons)
+    dict_results['cs_per_capita_hispanic'] = consumer_surplus_per_capita_hispanic(trips, persons)
+    dict_results['cs_per_capita_county'] = consumer_surplus_per_capita_county(trips, persons)
+    
+    #Other
+    dict_results['transit_ridersip'] = transit_ridersip(trips)
+    dict_results['mode_shares'] = mode_shares(trips)
+    dict_results['average_vehicle_ownership'] = average_vehicle_ownership(households)
+    dict_results['seat_utilization'] = seat_utilization(trips)
+    dict_results['average_traveltime_purpose'] = average_traveltime_purpose(trips)
+    dict_results['average_traveltime_mode'] = average_traveltime_mode(trips)
+    dict_results['average_traveltime_income'] = average_traveltime_income(trips)
+    dict_results['average_commute_trip_lenght'] = average_commute_trip_lenght(trips)
+   
     skims.close()
     
     return dict_results

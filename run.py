@@ -38,6 +38,14 @@ def download_s3(local_file_name,s3_bucket,s3_object_key):
         s3_client.download_fileobj(s3_bucket, s3_object_key, f, Callback=progress)
         
 
+def download_kpis(scenario):
+    local_file_name = "kpis/kpi_{}.yaml".format(scenario)
+    s3_bucket = 'carb-results'
+    s3_object_key = "{}/kpi_{}.yaml".format(scenario, scenario)
+
+    download_s3(local_file_name, s3_bucket, s3_object_key)
+        
+
 def download_data(scenario):
     """
     Download results (ActivitySim and Skims) of scenario in a tmp folder. 
@@ -164,17 +172,23 @@ def kpis_scenario(policy, scenario, scenario_id):
     """
     
     logger.info('Estimating KPIs for scenario: {}'.format(scenario))
-    results_exist = os.path.isfile('kpis/{}.yaml'.format(scenario))
+    try: 
+        download_kpis(scenario)
+    except:
+        pass 
+    
+    results_exist = os.path.isfile('kpis/kpi_{}.yaml'.format(scenario))
     if results_exist:
-        metrics = kpi.read_yaml('kpis/{}.yaml'.format(scenario))
+        metrics = kpi.read_yaml('kpis/kpi_{}.yaml'.format(scenario))
         metrics['policy'] = policy
+        metrics['scenario_id'] = scenario_id
         
     else: 
         download_data(scenario)
         metrics = kpi.get_scenario_results(policy, scenario, scenario_id)
         kpi.save_yaml('kpis/{}.yaml'.format(scenario), metrics)
     
-    kpis = list(set(metrics.keys()) - set(['policy', 'name']))
+    kpis = list(set(metrics.keys()) - set(['policy', 'name', 'scenario_id']))
     dfs_dict = {}
     
     for i in kpis:
@@ -188,7 +202,7 @@ def kpis_scenario(policy, scenario, scenario_id):
             categories = 'none'
             baselines = [metrics[i]]
             
-        scenario_name = metrics['name']
+        scenario_name = metrics['scenario_id']
 
         df = pd.DataFrame({'policy': [metrics['policy']] * n_categories , 
                            'category': categories,
@@ -209,18 +223,40 @@ def save_df(name, df):
 
 if __name__ == '__main__':
     
-    policy_scenarios = {'policy_one': {'base_line':'ex_1',
-                                       'scenario_1':'ex_2', 
-                                       'scenario_2':'ex_3'},
-                        'policy_two': {'base_line':'ex_1',
-                                       'scenario_1':'ex_4', 
-                                       'scenario_2':'ex_5'}}
+#     policy_scenarios = {'policy_one': {'base_line':'ex_1',
+#                                        'scenario_1':'ex_2', 
+#                                        'scenario_2':'ex_3'},
+#                         'policy_two': {'base_line':'ex_1',
+#                                        'scenario_1':'ex_4', 
+#                                        'scenario_2':'ex_5'}}
 
-    policy_changes = {'policy_one': {'scenario_1':0.25, 
-                                     'scenario_2':-0.25},
-                      'policy_two': {'scenario_1':0.1, 
-                                     'scenario_2':0.25}}
+#     policy_changes = {'policy_one': {'scenario_1':0.25, 
+#                                      'scenario_2':-0.25},
+#                       'policy_two': {'scenario_1':0.1, 
+#                                      'scenario_2':0.25}}
     
+    policy_scenarios = {'share_tnc_price': {'base_line':'16_share_tnc_price_+050',
+                                        'scenario_1':'16_share_tnc_price_+050', 
+                                        'scenario_2':'17_share_tnc_price_+025', 
+                                        'scenario_3':'18_share_tnc_price_-025',
+                                        'scenario_4':'19_share_tnc_price_-050'},
+                    'operating_cost': {'base_line':'16_share_tnc_price_+050',
+                                        'scenario_1':'20_operating_cost_+100', 
+                                        'scenario_2':'21_operating_cost_+050', 
+                                        'scenario_3':'22_operating_cost_-025',
+                                        'scenario_4':'23_operating_cost_-050'}
+                   }
+
+    policy_changes = {'share_tnc_price': {'scenario_1':0.5, 
+                                            'scenario_2':0.25, 
+                                            'scenario_3':-0.25,
+                                            'scenario_4':-0.50},
+                        'operating_cost': {'scenario_1':1.0, 
+                                            'scenario_2':0.5, 
+                                            'scenario_3':-0.25,
+                                            'scenario_4':-0.50}
+                       }
+
     
     metrics_list = []
     for policy, scenarios in policy_scenarios.items(): 
