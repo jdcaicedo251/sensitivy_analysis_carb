@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 def download_s3(local_file_name,s3_bucket,s3_object_key):
-    """ 
-    reference: 
+    """
+    reference:
     https://stackoverflow.com/questions/41827963/
     track-download-progress-of-s3-file-using-boto3-and-callbacks
     """
@@ -36,7 +36,7 @@ def download_s3(local_file_name,s3_bucket,s3_object_key):
     logger.info(f'Downloading {s3_object_key}')
     with open(local_file_name, 'wb') as f:
         s3_client.download_fileobj(s3_bucket, s3_object_key, f, Callback=progress)
-        
+
 
 def download_kpis(scenario):
     local_file_name = "kpis/kpi_{}.yaml".format(scenario)
@@ -44,26 +44,26 @@ def download_kpis(scenario):
     s3_object_key = "{}/kpi_{}.yaml".format(scenario, scenario)
 
     download_s3(local_file_name, s3_bucket, s3_object_key)
-        
+
 
 def download_data(scenario):
     """
-    Download results (ActivitySim and Skims) of scenario in a tmp folder. 
-    
-    Parameters: 
+    Download results (ActivitySim and Skims) of scenario in a tmp folder.
+
+    Parameters:
     -------------
-    - scenario: str. scenario name 
-    
+    - scenario: str. scenario name
+
     Returns:
     --------
     None
-    
+
     """
     data_exist = os.path.isdir('tmp/{}'.format(scenario))
-    
+
     if data_exist:
         pass
-    
+
     else:
         s3_bucket = 'carb-results'
 
@@ -86,9 +86,9 @@ def download_data(scenario):
 
 def delete_data(scenario):
     """
-    Deletes data of the give scenario. 
-    
-    Parameters: 
+    Deletes data of the give scenario.
+
+    Parameters:
     ------------
     - scenario: str. scenario name.
     """
@@ -98,21 +98,21 @@ def delete_data(scenario):
         os.rmdir('tmp/{}'.format(scenario))
         os.remove("tmp/{}_asim_output.zip".format(scenario))
     return None
-    
+
 def add_scenario_changes(df,policy_changes):
-    """ 
+    """
     Adds the scenario_id percentual change columns df
-    
-    Parameters: 
+
+    Parameters:
     ------------
-    df: pandas DataFrame. Policy resutls 
-    policy_changes. dict. Dictionary with percental 
-                          change by policy and scenario. 
-    
+    df: pandas DataFrame. Policy resutls
+    policy_changes. dict. Dictionary with percental
+                          change by policy and scenario.
+
     Returns:
     --------
-    df with <scenario_ids>_%change columns. 
-    
+    df with <scenario_ids>_%change columns.
+
     """
     changes = pd.DataFrame(policy_changes).T
     changes.index.set_names('policy', inplace = True)
@@ -121,14 +121,14 @@ def add_scenario_changes(df,policy_changes):
 
 def scenario_elasticities(df):
     """
-    Estimates scenario elasticity. 
+    Estimates scenario elasticity.
     """
     metrics = df[df.columns[df.columns.str.contains('_metric')]]
     change = df[df.columns[df.columns.str.contains('_%change')]].values
     baseline = df['base_line']
-    
+
     elasticity = (metrics.div(baseline, axis = 0) - 1).div(change, axis = 'columns')
-    elasticity.columns = elasticity.columns.str[:11] 
+    elasticity.columns = elasticity.columns.str[:11]
     elasticity = elasticity.add_suffix('elasticity')
     return df.join(elasticity)
 
@@ -147,7 +147,7 @@ def common_entries(dcts):
     """
     Zip function for dicts
     Reference: https://stackoverflow.com/questions/16458340/python-equivalent-of-zip-for-dictionaries
-    Change code to return a dictionary instead, and input a list of dicts. 
+    Change code to return a dictionary instead, and input a list of dicts.
     """
     if not dcts:
         return
@@ -160,37 +160,38 @@ def common_entries(dcts):
 def kpis_scenario(policy, scenario, scenario_id):
     """
     Computes the kpi for the given policy, scenario and scenario_id
-    
-    Parameters: 
+
+    Parameters:
     - policy: str. policy name
     - scenario: str. scenario name
     - scenario_id: str. scenario id
-    
+
     Returns:
     --------
     dict. dict of KPIs
     """
-    
+
     logger.info('Estimating KPIs for scenario: {}'.format(scenario))
-    try: 
-        download_kpis(scenario)
-    except:
-        pass 
-    
+    # try:
+    download_kpis(scenario)
+    # except:
+        # logger.info('Policy {} not found'.format(scenario))
+        # pass
+
     results_exist = os.path.isfile('kpis/kpi_{}.yaml'.format(scenario))
     if results_exist:
         metrics = kpi.read_yaml('kpis/kpi_{}.yaml'.format(scenario))
         metrics['policy'] = policy
         metrics['scenario_id'] = scenario_id
-        
-    else: 
-        download_data(scenario)
-        metrics = kpi.get_scenario_results(policy, scenario, scenario_id)
-        kpi.save_yaml('kpis/{}.yaml'.format(scenario), metrics)
-    
+
+    # else:
+    #     download_data(scenario)
+    #     metrics = kpi.get_scenario_results(policy, scenario, scenario_id)
+    #     kpi.save_yaml('kpis/{}.yaml'.format(scenario), metrics)
+
     kpis = list(set(metrics.keys()) - set(['policy', 'name', 'scenario_id']))
     dfs_dict = {}
-    
+
     for i in kpis:
         try:
             n_categories = len(metrics[i])
@@ -201,71 +202,53 @@ def kpis_scenario(policy, scenario, scenario_id):
             n_categories = 1
             categories = 'none'
             baselines = [metrics[i]]
-            
+
         scenario_name = metrics['scenario_id']
 
-        df = pd.DataFrame({'policy': [metrics['policy']] * n_categories , 
+        df = pd.DataFrame({'policy': [metrics['policy']] * n_categories ,
                            'category': categories,
                            '{}'.format(scenario_name): baselines})
-        
+
         df = df.set_index(['policy','category'])
         dfs_dict[i] = df
-    
+
 #     delete_data(scenario)
     return dfs_dict
 
 def save_df(name, df):
-    """ 
-    Saves dataframe 
+    """
+    Saves dataframe
     """
     df.to_csv('kpis/summary/{}.csv'.format(name))
 
 
 if __name__ == '__main__':
-    
+
+    policy_scenarios= kpi.read_yaml('policies.yaml')
+    policy_changes = kpi.read_yaml('policy_changes.yaml')
+
 #     policy_scenarios = {'policy_one': {'base_line':'ex_1',
-#                                        'scenario_1':'ex_2', 
+#                                        'scenario_1':'ex_2',
 #                                        'scenario_2':'ex_3'},
 #                         'policy_two': {'base_line':'ex_1',
-#                                        'scenario_1':'ex_4', 
+#                                        'scenario_1':'ex_4',
 #                                        'scenario_2':'ex_5'}}
 
-#     policy_changes = {'policy_one': {'scenario_1':0.25, 
+#     policy_changes = {'policy_one': {'scenario_1':0.25,
 #                                      'scenario_2':-0.25},
-#                       'policy_two': {'scenario_1':0.1, 
+#                       'policy_two': {'scenario_1':0.1,
 #                                      'scenario_2':0.25}}
-    
-    policy_scenarios = {'share_tnc_price': {'base_line':'16_share_tnc_price_+050',
-                                        'scenario_1':'16_share_tnc_price_+050', 
-                                        'scenario_2':'17_share_tnc_price_+025', 
-                                        'scenario_3':'18_share_tnc_price_-025',
-                                        'scenario_4':'19_share_tnc_price_-050'},
-                    'operating_cost': {'base_line':'16_share_tnc_price_+050',
-                                        'scenario_1':'20_operating_cost_+100', 
-                                        'scenario_2':'21_operating_cost_+050', 
-                                        'scenario_3':'22_operating_cost_-025',
-                                        'scenario_4':'23_operating_cost_-050'}
-                   }
 
-    policy_changes = {'share_tnc_price': {'scenario_1':0.5, 
-                                            'scenario_2':0.25, 
-                                            'scenario_3':-0.25,
-                                            'scenario_4':-0.50},
-                        'operating_cost': {'scenario_1':1.0, 
-                                            'scenario_2':0.5, 
-                                            'scenario_3':-0.25,
-                                            'scenario_4':-0.50}
-                       }
 
-    
+
     metrics_list = []
-    for policy, scenarios in policy_scenarios.items(): 
-        
+    for policy, scenarios in policy_scenarios.items():
+
         scenario_list = [kpis_scenario(policy,s,s_id) for s_id,s in scenarios.items()]
         iterable = common_entries(scenario_list)
         scenario_list = {k:pd.concat(v, axis = 1) for k, v in iterable.items()}
         metrics_list.append(scenario_list)
-    
+
     iterable = common_entries(metrics_list)
     dfs = {k:pd.concat(v, axis = 0) for k, v in iterable.items()}
     dfs = {k:add_scenario_changes(v, policy_changes) for k, v in dfs.items()}

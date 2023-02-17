@@ -1,0 +1,75 @@
+#### Resutls mapping
+transit_frequency:
+    base_line: 01_base_000
+    scenario_1: 02_transit_frequencies_+200
+    scenario_2: 03_transit_frequencies_+100
+    scenario_3: 04_transit_frequencies_-025
+    scenario_4: 05_transit_frequencies_-050
+transit_price:
+    base_line: 52_base_000
+    scenario_1: 06_transit_fare_+050
+    scenario_2: 07_transit_fare_-025
+    scenario_3: 08_transit_fare_-050
+    scenario_4: 09_transit_fare_-100
+transit_speed:
+    base_line: 52_base_000
+    scenario_1: 11_transit_vehicle_time_-025
+tnc_price:
+    base_line: 01_base_000
+    scenario_1: 12_tnc_price_+050
+    scenario_2: 13_tnc_price_+025
+    scenario_3: 14_tnc_price_-025
+    scenario_4: 15_tnc_price_-050
+share_tnc_price:
+    base_line: 01_base_000
+    scenario_1: 16_share_tnc_price_+050
+    scenario_2: 17_share_tnc_price_+025
+    scenario_3: 18_share_tnc_price_-025
+    scenario_4: 19_share_tnc_price_-050
+operating_cost:
+    base_line: 01_base_000
+    scenario_1: 20_operating_cost_+100
+    scenario_2: 21_operating_cost_+050
+    scenario_3: 22_operating_cost_-025
+    scenario_4: 23_operating_cost_-050
+cordon_pricing:
+    base_line: 01_base_000
+    scenario_1: 24_cordon_pricing_+025
+    scenario_2: 25_cordon_pricing_+010
+    scenario_3: 26_cordon_pricing_-025
+    scenario_4: 27_cordon_pricing_-050
+park_ride:
+    base_line: 01_base_000
+    scenario_1: 28_park_ride_+050
+    scenario_2: 29_park_ride_+025
+    scenario_3: 30_park_ride_-025
+    scenario_4: 31_park_ride_-050
+telecommute_option:
+    base_line: 01_base_000
+    scenario_1: 32_telecommute_option_+050
+    scenario_2: 33_telecommute_option_+025
+    scenario_3: 34_telecommute_option_-025
+    scenario_4: 35_telecommute_option_-050
+telecommute_frequency:
+    base_line: 01_base_000
+    scenario_1: 36_telecommute_frequency_000
+    scenario_2: 37_telecommute_frequency_+050
+    scenario_3: 38_telecommute_frequency_+200
+    scenario_4: 39_telecommute_frequency_+300
+av_rates:
+    base_line: 52_base_000
+    scenario_1: 40_av_rate_005
+    scenario_2: 41_av_rate_010
+    scenario_3: 42_av_rate_025
+    scenario_4: 43_av_rate_050
+av_vot:
+    base_line: 52_base_000
+    scenario_1: 44_av_vot_-010
+    scenario_2: 45_av_vot_-020
+    scenario_3: 42_av_rate_025
+    scenario_4: 47_av_vot_-060
+tod:
+    base_line: 51_tod_000
+    scenario_1: 48_tod_+010
+    scenario_2: 49_tod_+025
+    scenario_3: 50_tod_+050

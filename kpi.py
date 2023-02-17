@@ -2,8 +2,8 @@ import os
 import re
 import sys
 import yaml
-import pandas as pd 
-import numpy as np 
+import pandas as pd
+import numpy as np
 import openmatrix as omx
 
 import logging
@@ -31,7 +31,7 @@ def read_yaml(path):
 def save_yaml(path, file):
     with open(path, 'w') as outfile:
         yaml.dump(file, outfile, default_flow_style=False)
-    
+
 
 def get_metric(metric, results):
     values = []
@@ -40,7 +40,7 @@ def get_metric(metric, results):
         values.append(arg[metric])
         names.append(arg['name'])
     return values, names
-    
+
 def build_df_multi(values, names):
     dfs = []
     for v,n in zip(values,names):
@@ -60,19 +60,19 @@ def od_matrix_lookup(origin, destination, matrix):
     ''' Returns the distance between origin and estiantion in miles
     Parameters:
     -----------
-    - origing: 1-d array-like. origins ID 
-    - destination: 1- d array_like. destination ID 
-    - matrix: 2-d array-like. Origin-destiantion matrix for a given metric. 
-                              Rows are origins, columns are destinations 
-                              
-    Returns: 
-    1-d array of the origin-destination metric. 
+    - origing: 1-d array-like. origins ID
+    - destination: 1- d array_like. destination ID
+    - matrix: 2-d array-like. Origin-destiantion matrix for a given metric.
+                              Rows are origins, columns are destinations
+
+    Returns:
+    1-d array of the origin-destination metric.
     '''
     assert origin.ndim == 1, 'origin should be a 1-d array'
     assert destination.ndim == 1, 'destination should be 1-d array'
     assert matrix.ndim == 2, 'distance matrix should be 2-d array'
     assert origin.shape == destination.shape, 'origin and destination should have the same shape'
-    
+
     #Transform array-like to numpy array in case they are not
     #Substract 1 because distance matrix starts in ZERO
     origin = np.array(origin) - 1
@@ -81,47 +81,47 @@ def od_matrix_lookup(origin, destination, matrix):
 
 
 def od_matrix__time_lookup(period, mode, origin, destination, matrix):
-    ''' Returns the an 0-D pair value by period and mode. 
+    ''' Returns the an 0-D pair value by period and mode.
     Parameters:
     -----------
-    - perdiod: int. 
+    - perdiod: int.
         - 'EA'= 0
         - 'AM'= 1
-        - 'MD'= 2 
+        - 'MD'= 2
         - 'PM'= 3
         - 'EV'= 4
-    - mode: int. 
-        -'DRIVEALONEFREE': 0, 
-        -'DRIVEALONEPAY':1, 
-        -'SHARED2FREE': 2, 
-        -'SHARED3FREE': 3, 
-        -'SHARED2PAY':4, 
-        -'SHARED3PAY':5, 
-        -'WALK': 6, 
-        -'BIKE': 7, 
+    - mode: int.
+        -'DRIVEALONEFREE': 0,
+        -'DRIVEALONEPAY':1,
+        -'SHARED2FREE': 2,
+        -'SHARED3FREE': 3,
+        -'SHARED2PAY':4,
+        -'SHARED3PAY':5,
+        -'WALK': 6,
+        -'BIKE': 7,
         -'WALK_HVY': 8,
         -'WALK_LOC': 9,
         -'WALK_EXP': 10,
         -'WALK_COM': 11,
         -'WALK_LRF': 12,
-        -'DRIVE_HVY': 13, 
+        -'DRIVE_HVY': 13,
         -'DRIVE_LOC': 14,
         -'DRIVE_EXP': 15,
         -'DRIVE_COM': 16,
         -'DRIVE_LRF': 17,
         -'TNC_SINGLE': 18,
-        -'TNC_SHARED': 19, 
+        -'TNC_SHARED': 19,
         -'TAXI': 20
-    - origing: 1-d array-like. origins ID 
-    - destination: 1- d array_like. destination ID 
+    - origing: 1-d array-like. origins ID
+    - destination: 1- d array_like. destination ID
     - matrix: 4-d array-like. Travel Time skims. Each dimension correspond to:
         - period
         - mode_index
         - origin
         - destiantion
-                              
-    Returns: 
-    1-d array of the origin-destination metric. 
+
+    Returns:
+    1-d array of the origin-destination metric.
     '''
     assert origin.ndim == 1, 'origin should be a 1-d array'
     assert destination.ndim == 1, 'destination should be 1-d array'
@@ -129,7 +129,7 @@ def od_matrix__time_lookup(period, mode, origin, destination, matrix):
     assert period.ndim == 1, 'destination should be 1-d array'
     assert matrix.ndim == 4, 'distance matrix should be 4-d array'
     assert origin.shape == destination.shape, 'origin and destination should have the same shape'
-    
+
     #Transform array-like to numpy array in case they are not
     #Substract 1 because distance matrix starts in ZERO
     origin = np.array(origin) - 1
@@ -138,36 +138,36 @@ def od_matrix__time_lookup(period, mode, origin, destination, matrix):
 
 def time_skims(skims):
     """
-    Return time skims for each mode of transportation. 
-    Time Period Index: 
+    Return time skims for each mode of transportation.
+    Time Period Index:
     - 'EA'= 0
     - 'AM'= 1
-    - 'MD'= 2 
+    - 'MD'= 2
     - 'PM'= 3
     - 'EV'= 4
     Mode Index:
-    -'DRIVEALONEFREE': 0, 
-    -'DRIVEALONEPAY':1, 
-    -'SHARED2FREE': 2, 
-    -'SHARED3FREE': 3, 
-    -'SHARED2PAY':4, 
-    -'SHARED3PAY':5, 
-    -'WALK': 6, 
-    -'BIKE': 7, 
+    -'DRIVEALONEFREE': 0,
+    -'DRIVEALONEPAY':1,
+    -'SHARED2FREE': 2,
+    -'SHARED3FREE': 3,
+    -'SHARED2PAY':4,
+    -'SHARED3PAY':5,
+    -'WALK': 6,
+    -'BIKE': 7,
     -'WALK_HVY': 8,
     -'WALK_LOC': 9,
     -'WALK_EXP': 10,
     -'WALK_COM': 11,
     -'WALK_LRF': 12,
-    -'DRIVE_HVY': 13, 
+    -'DRIVE_HVY': 13,
     -'DRIVE_LOC': 14,
     -'DRIVE_EXP': 15,
     -'DRIVE_COM': 16,
     -'DRIVE_LRF': 17,
     -'TNC_SINGLE': 0,
-    -'TNC_SHARED': 0, 
+    -'TNC_SHARED': 0,
     -'TAXI': 0
-    
+
     Return:
     - four-dimensional matrix with travel times. (time_period, mode, origin, destination)
     """
@@ -201,34 +201,34 @@ def time_skims(skims):
 
         bike_time = np.array(skims['DISTBIKE'])*60/12 #12 miles/hour
         walk_time = np.array(skims['DISTWALK'])*60/3 #3 miles/hour
-        
+
         period_time_skims = np.stack((driving_skims + \
                                       [walk_time] + \
                                       [bike_time] + \
                                       walk_transit + \
                                       drive_transit))
-        
+
         time_skims.append(period_time_skims)
-        
+
     return np.stack(time_skims)
 
 def driving_skims(skims):
     """
-    Return time skims for each mode of transportation. 
-    Time Period Index: 
+    Return time skims for each mode of transportation.
+    Time Period Index:
     - 'EA'= 0
     - 'AM'= 1
-    - 'MD'= 2 
+    - 'MD'= 2
     - 'PM'= 3
     - 'EV'= 4
     Mode Index:
-    -'DRIVE_HVY': 0, 
+    -'DRIVE_HVY': 0,
     -'DRIVE_LOC': 1,
     -'DRIVE_EXP': 2,
     -'DRIVE_COM': 3,
     -'DRIVE_LRF': 4,
     - OTHER MODE': 5
-    
+
     Return:
     - four-dimensional matrix. (time_period, mode, origin, destination)
     """
@@ -243,22 +243,27 @@ def driving_skims(skims):
             driving_access_skims.append(drive_access_skim)
             shape = drive_access_skim.shape
 
-        
+
         period_time_skims = np.stack(driving_access_skims + [np.zeros(shape)])
-        
+
         time_skims.append(period_time_skims)
-        
+
     return np.stack(time_skims)
 
 def add_results_variables(settings, trips, households, persons, skims):
+    # trip_ids = [ 504934577, 1751074894, 1777578817, 1456859106,  603528097,
+    #         1976026805,  533494525,  289144125, 1633307365, 1638300725,
+    #         1467097413,  157430480, 1940255009,  914568381,  523906186,
+    #         1504426761, 1971365534, 1962963501, 1186364457, 1094031193]
+    # df = trips[trips.index.isin(trip_ids)].copy()
     df = trips.copy()
-    
-    #Skims values 
+
+    #Skims values
     dist = np.array(skims['DIST'])
     time_skims_final = time_skims(skims)
     driving_access_skims = driving_skims(skims)
-    
-    # Mappings 
+
+    # Mappings
     carb_mode_mapping = settings['carb_mode_mapping']
     mode_index_mapping = settings['mode_index_mapping']
     drv_acc_mode_index_mapping = settings['driving_access_mode_index_mapping']
@@ -266,13 +271,13 @@ def add_results_variables(settings, trips, households, persons, skims):
     ivt_mapping = settings['ivt_mapping']
     hispanic = settings['hispanic']
     county_mapping = settings['county_mapping']
-    
+
     df['dist_miles'] = od_matrix_lookup(df.origin, df.destination, dist)
     df['carb_mode'] = df.trip_mode.replace(carb_mode_mapping)
     df['commute'] = df.primary_purpose.replace(commute_mapping)
     df['period'] = pd.cut(df.depart, (0,5,10,15,19,24), labels = [0,1,2,3,4]).astype(int)
     df['mode_index'] = df.trip_mode.replace(mode_index_mapping)
-    df['travel_time'] = od_matrix__time_lookup(df.period, df.mode_index, 
+    df['travel_time'] = od_matrix__time_lookup(df.period, df.mode_index,
                                               df.origin, df.destination,
                                               time_skims_final)
     df['driving_access_mode_index'] = df.trip_mode.replace(drv_acc_mode_index_mapping)
@@ -280,53 +285,59 @@ def add_results_variables(settings, trips, households, persons, skims):
                                                 df.origin -1, df.destination -1]
 
     df['VMT'] = df['driving_access']
-    df['VMT'] = df.VMT.mask(df.trip_mode.isin(['DRIVEALONEFREE','DRIVEALONEPAY']), 
+    df['VMT'] = df.VMT.mask(df.trip_mode.isin(['DRIVEALONEFREE','DRIVEALONEPAY']),
                             df.dist_miles)
-    df['VMT'] = df.VMT.mask(df.trip_mode.isin(['SHARED2FREE','SHARED2PAY']), 
+    df['VMT'] = df.VMT.mask(df.trip_mode.isin(['SHARED2FREE','SHARED2PAY']),
                             df.dist_miles/2)
-    df['VMT'] = df.VMT.mask(df.trip_mode.isin(['SHARED3FREE','SHARED3PAY']), 
+    df['VMT'] = df.VMT.mask(df.trip_mode.isin(['SHARED3FREE','SHARED3PAY']),
                             df.dist_miles/3)
     df['VMT'] = df.VMT.mask(df.trip_mode.isin(['TNC_SINGLE']), df.dist_miles)
     df['VMT'] = df.VMT.mask(df.trip_mode.isin(['TNC_SHARED']), df.dist_miles/2.5)
     df['VMT'] = df.VMT.mask(df.trip_mode.isin(['TAXI']), df.dist_miles)
-    
+
     # Add Trips Variables
     df['c_ivt'] = df['primary_purpose'].replace(ivt_mapping)
-    
-    
+
     #Add socio-economic variables
-    df_demos = df.merge(households[['income','lcm_county_id']], how = 'left', 
+    df_trips = df.merge(households[['income','lcm_county_id']], how = 'left',
             left_on = 'household_id', right_index = True)
-    
-    df_demos = df_demos.merge(persons[['race','hispanic','value_of_time']], how = 'left', 
+
+    df_trips = df_trips.merge(persons[['race','hispanic','value_of_time']], how = 'left',
                          left_on = 'person_id', right_index = True)
 
-    df_demos['income_category'] = pd.cut(df_demos.income, 
+    print('Mean TRIP VOT: {}'.format(df_trips['value_of_time'].mean()))
+
+    df_trips['income_category'] = pd.cut(df_trips.income,
                                          [-np.inf, 80000, 150000, np.inf],
                                          labels = ['low', 'middle','high'])
-    
-    df_demos['c_cost'] = (0.60 * df_demos['c_ivt'])/(df_demos['value_of_time'])
-    df_demos['cs'] = df_demos['mode_choice_logsum']/(-1 * df_demos['c_cost']* (-1))
-    
-    df_demos['hispanic'] = df_demos['hispanic'].replace(hispanic)
-    df_demos['lcm_county_id'] = df_demos['lcm_county_id'].replace(county_mapping)
-    
-    ## Modify persons table 
+
+    df_trips['c_cost'] = (0.60 * df_trips['c_ivt'])/(df_trips['value_of_time'])
+    df_trips['cs'] = df_trips['mode_choice_logsum']/(-1 * df_trips['c_cost'].mean())
+
+    df_trips['hispanic'] = df_trips['hispanic'].replace(hispanic)
+    df_trips['lcm_county_id'] = df_trips['lcm_county_id'].replace(county_mapping)
+
+    ## Modify persons table
     df_persons = persons.copy()
-    
-    df_persons = df_persons.merge(households[['income','lcm_county_id']], 
-                                  how = 'left', 
-                                  left_on = 'household_id', 
+
+    df_persons = df_persons.merge(households[['income','lcm_county_id']],
+                                  how = 'left',
+                                  left_on = 'household_id',
                                   right_index = True)
-    
-    df_persons['income_category'] = pd.cut(df_persons.income, 
+
+    df_persons['income_category'] = pd.cut(df_persons.income,
                                          [-np.inf, 80000, 150000, np.inf],
                                          labels = ['low', 'middle','high'])
     df_persons['lcm_county_id'] = df_persons['lcm_county_id'].replace(county_mapping)
     df_persons['hispanic'] = df_persons['hispanic'].replace(hispanic)
-    
-    
-    return df_demos, df_persons
+
+    print('Trips shape, after merging: {}'.format(df_trips.shape))
+    print('Persons shape after merging: {}'.format(df_persons.shape))
+    print('Sum of c_cost: {}'.format(df_trips['c_cost'].sum()))
+    print('Sum of c_ivt: {}'.format(df_trips['c_ivt'].sum()))
+    print('Sum of value of time: {}'.format(df_trips['value_of_time'].sum()))
+    print('Sum of cs: {}'.format(df_trips['cs'].sum()))
+    return df_trips, df_persons
 
 ############################
 ## Performance Indicators ##
@@ -376,9 +387,10 @@ def vmt_per_capita_county(trips, persons):
 
 ## Consumer Surplus ##
 ######################
-def total_consumer_surplus(trips):
+def total_consumer_surplus(df):
     logging.info('Calulating consumer surplus...')
-    return float(trips['cs'].sum())
+    print(float(df['cs'].sum()))
+    return float(df['cs'].sum())
 
 def consumer_surplus_per_capita(trips, persons):
     logging.info('Calulating average consumer surplus...')
@@ -434,7 +446,7 @@ def seat_utilization(trips):
     logging.info('Calulating seat utilization...')
     veh_1 = int(trips['trip_mode'].isin(['DRIVEALONEFREE','DRIVEALONEPAY']).sum())
     veh_2 = int(trips['trip_mode'].isin(['SHARED2FREE','SHARED2PAY']).sum())
-    veh_3 = int(trips['trip_mode'].isin(['SHARED3FREE','SHARED3PAY']).sum())      
+    veh_3 = int(trips['trip_mode'].isin(['SHARED3FREE','SHARED3PAY']).sum())
     return float((veh_1 + veh_2 + veh_3)/(veh_1 + veh_2/2 + veh_3/3))
 
 def average_traveltime_purpose(trips):
@@ -459,21 +471,21 @@ def average_commute_trip_lenght(trips):
 
 def get_scenario_results(policy, scenario, scenario_id):
     logging.info('Saving policy scenario resutls')
-    
+
     #Important tables
     households = pd.read_csv('tmp/{}/households.csv'.format(scenario), index_col = 'household_id')
     persons = pd.read_csv('tmp/{}/persons.csv'.format(scenario), index_col = 'person_id')
-    trips = pd.read_csv('tmp/{}/trips.csv'.format(scenario), index_col = 'trip_id', 
+    trips = pd.read_csv('tmp/{}/trips.csv'.format(scenario), index_col = 'trip_id',
                        dtype = {'origin':int, 'destination':int})
     skims = omx.open_file('tmp/{}/skims.omx'.format(scenario), 'r')
     mapping = read_yaml('mapping.yaml')
-    
+
     trips , persons = add_results_variables(mapping, trips, households, persons, skims)
-    
+
     dict_results = {}
     dict_results['policy'] = policy
     dict_results['name'] = scenario_id
-    
+
     #Vmt KPIS
     dict_results['total_vmt'] = total_vmt(trips)
     dict_results['vmt_per_capita'] = vmt_per_capita(trips, persons)
@@ -481,7 +493,7 @@ def get_scenario_results(policy, scenario, scenario_id):
     dict_results['vmt_per_capita_race'] = vmt_per_capita_race(trips, persons)
     dict_results['vmt_per_capita_hispanic'] = vmt_per_capita_hispanic(trips, persons)
     dict_results['vmt_per_capita_county'] = vmt_per_capita_county(trips, persons)
-    
+
     #Consumer Surplus KPIs
     dict_results['total_cs'] = total_consumer_surplus(trips)
     dict_results['cs_per_capita'] = consumer_surplus_per_capita(trips, persons)
@@ -489,7 +501,7 @@ def get_scenario_results(policy, scenario, scenario_id):
     dict_results['cs_per_capita_race'] = consumer_surplus_per_capita_race(trips, persons)
     dict_results['cs_per_capita_hispanic'] = consumer_surplus_per_capita_hispanic(trips, persons)
     dict_results['cs_per_capita_county'] = consumer_surplus_per_capita_county(trips, persons)
-    
+
     #Other
     dict_results['transit_ridersip'] = transit_ridersip(trips)
     dict_results['mode_shares'] = mode_shares(trips)
@@ -499,59 +511,65 @@ def get_scenario_results(policy, scenario, scenario_id):
     dict_results['average_traveltime_mode'] = average_traveltime_mode(trips)
     dict_results['average_traveltime_income'] = average_traveltime_income(trips)
     dict_results['average_commute_trip_lenght'] = average_commute_trip_lenght(trips)
-   
+
     skims.close()
-    
+
     return dict_results
 
 def kpi_pilates(scenario):
     logging.info('Saving policy scenario resutls')
-    print(os.getcwd())
-    
     #Important tables
-    hh_fpath = os.path.join('pilates','activitysim','output','final_households.csv')
-    pp_fpath = os.path.join('pilates','activitysim','output','final_persons.csv')
-    tt_fpath = os.path.join('pilates','activitysim','output','final_trips.csv')
-    ss_fpath = os.path.join('pilates','activitysim','data','skims.omx')
-    
+    hh_fpath = os.path.join('/Users/juandavidcaicedocastro/tmp', scenario,'final_households.csv')
+    pp_fpath = os.path.join('/Users/juandavidcaicedocastro/tmp', scenario,'final_persons.csv')
+    tt_fpath = os.path.join('/Users/juandavidcaicedocastro/tmp', scenario,'final_trips.csv')
+    ss_fpath = os.path.join('/Users/juandavidcaicedocastro/tmp', scenario,'skims.omx')
+
+    # hh_fpath = os.path.join('pilates','activitysim','output','final_households.csv')
+    # pp_fpath = os.path.join('pilates','activitysim','output','final_persons.csv')
+    # tt_fpath = os.path.join('pilates','activitysim','output','final_trips.csv')
+    # ss_fpath = os.path.join('pilates','activitysim','data','skims.omx')
+
     households = pd.read_csv(hh_fpath, index_col = 'household_id')
     persons = pd.read_csv(pp_fpath, index_col = 'person_id')
     trips = pd.read_csv(tt_fpath, index_col = 'trip_id', dtype = {'origin':int, 'destination':int})
     skims = omx.open_file(ss_fpath, 'r')
-    mapping = read_yaml('pilates/utils/data/mapping.yaml')
-    
-    trips , persons = add_results_variables(mapping, trips, households, persons, skims)
-    
+    mapping = read_yaml('/Users/juandavidcaicedocastro/Dropbox/01_berkeley/22_UrbanSim/github/sensitivy_analysis_carb/mapping.yaml')
+
+    print('Trips shape: {}'.format(trips.shape))
+    print('Households shape: {}'.format(households.shape))
+
+    trips_ , persons_ = add_results_variables(mapping, trips, households, persons, skims)
+
     dict_results = {}
     dict_results['policy'] = scenario[3:-5]
     dict_results['name'] = scenario
-    
+
     #Vmt KPIS
-    dict_results['total_vmt'] = total_vmt(trips)
-    dict_results['vmt_per_capita'] = vmt_per_capita(trips, persons)
-    dict_results['vmt_per_capita_income'] = vmt_per_capita_income(trips, persons)
-    dict_results['vmt_per_capita_race'] = vmt_per_capita_race(trips, persons)
-    dict_results['vmt_per_capita_hispanic'] = vmt_per_capita_hispanic(trips, persons)
-    dict_results['vmt_per_capita_county'] = vmt_per_capita_county(trips, persons)
-    
+    dict_results['total_vmt'] = total_vmt(trips_)
+    dict_results['vmt_per_capita'] = vmt_per_capita(trips_, persons_)
+    dict_results['vmt_per_capita_income'] = vmt_per_capita_income(trips_, persons_)
+    dict_results['vmt_per_capita_race'] = vmt_per_capita_race(trips_, persons_)
+    dict_results['vmt_per_capita_hispanic'] = vmt_per_capita_hispanic(trips_, persons_)
+    dict_results['vmt_per_capita_county'] = vmt_per_capita_county(trips_, persons_)
+
     #Consumer Surplus KPIs
-    dict_results['total_cs'] = total_consumer_surplus(trips)
-    dict_results['cs_per_capita'] = consumer_surplus_per_capita(trips, persons)
-    dict_results['cs_per_capita_income'] = consumer_surplus_per_capita_income(trips, persons)
-    dict_results['cs_per_capita_race'] = consumer_surplus_per_capita_race(trips, persons)
-    dict_results['cs_per_capita_hispanic'] = consumer_surplus_per_capita_hispanic(trips, persons)
-    dict_results['cs_per_capita_county'] = consumer_surplus_per_capita_county(trips, persons)
-    
+    dict_results['total_cs'] = total_consumer_surplus(trips_)
+    dict_results['cs_per_capita'] = consumer_surplus_per_capita(trips_, persons_)
+    dict_results['cs_per_capita_income'] = consumer_surplus_per_capita_income(trips_, persons_)
+    dict_results['cs_per_capita_race'] = consumer_surplus_per_capita_race(trips_, persons_)
+    dict_results['cs_per_capita_hispanic'] = consumer_surplus_per_capita_hispanic(trips_, persons_)
+    dict_results['cs_per_capita_county'] = consumer_surplus_per_capita_county(trips_, persons_)
+
     #Other
-    dict_results['transit_ridersip'] = transit_ridersip(trips)
-    dict_results['mode_shares'] = mode_shares(trips)
+    dict_results['transit_ridersip'] = transit_ridersip(trips_)
+    dict_results['mode_shares'] = mode_shares(trips_)
     dict_results['average_vehicle_ownership'] = average_vehicle_ownership(households)
-    dict_results['seat_utilization'] = seat_utilization(trips)
-    dict_results['average_traveltime_purpose'] = average_traveltime_purpose(trips)
-    dict_results['average_traveltime_mode'] = average_traveltime_mode(trips)
-    dict_results['average_traveltime_income'] = average_traveltime_income(trips)
-    dict_results['average_commute_trip_lenght'] = average_commute_trip_lenght(trips)
-   
+    dict_results['seat_utilization'] = seat_utilization(trips_)
+    dict_results['average_traveltime_purpose'] = average_traveltime_purpose(trips_)
+    dict_results['average_traveltime_mode'] = average_traveltime_mode(trips_)
+    dict_results['average_traveltime_income'] = average_traveltime_income(trips_)
+    dict_results['average_commute_trip_lenght'] = average_commute_trip_lenght(trips_)
+
     skims.close()
-    
+
     return dict_results

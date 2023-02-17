@@ -1,0 +1,84 @@
+average_commute_trip_lenght:
+  Bike: 2.35147762298584
+  Drive Alone: 8.101089477539062
+  Public Transit: 5.628628730773926
+  Shared Ride: 6.1910600662231445
+  TNC - Pooled: 5.8810296058654785
+  TNC - Ride Alone: 3.7651870250701904
+  Walk: 0.7069030404090881
+average_traveltime_income:
+  high: 18.25286865234375
+  low: 16.88578987121582
+  middle: 18.306825637817383
+average_traveltime_mode:
+  Bike: 11.7573881149292
+  Drive Alone: 18.716928482055664
+  Public Transit: 27.487695693969727
+  Shared Ride: 16.370960235595703
+  TNC - Pooled: 13.814476013183594
+  TNC - Ride Alone: 11.271310806274414
+  Walk: 14.138060569763184
+average_traveltime_purpose:
+  commute: 18.790990829467773
+  non_commute: 16.550336837768555
+average_vehicle_ownership: 1.8893008899849324
+cs_per_capita: -469.9676477988476
+cs_per_capita_county:
+  Alameda: -457.41281397156155
+  Contra Costa: -594.6794187281566
+  Marin: -470.2727533633599
+  Napa: -640.0108869965311
+  San Francisco: -366.90419756517286
+  San Mateo: -441.2166661744428
+  Santa Clara: -392.1000445078572
+  Solano: -614.074423520188
+  Sonoma: -561.3965873197375
+cs_per_capita_hispanic:
+  hispanic: -522.8325656350194
+  non_hispanic: -454.86946168197767
+cs_per_capita_income:
+  high: -450.16143586063254
+  low: -490.98625502695864
+  middle: -454.4170201655831
+cs_per_capita_race:
+  asian: -418.6660260212383
+  black: -485.36020136886117
+  other: -549.855204612858
+  white: -471.05236804639196
+mode_shares:
+  Bike: 0.014415934730996205
+  Drive Alone: 0.4512889562927221
+  Public Transit: 0.06576049944549159
+  Shared Ride: 0.3281827193444276
+  TNC - Pooled: 0.013044400398846075
+  TNC - Ride Alone: 0.03396230276606764
+  Walk: 0.09334518702144881
+name: 07_transit_fare_-025
+policy: transit_fare
+seat_utilization: 1.3190984903034146
+total_cs: -3530261619.5823774
+total_vmt: 120339852.43284638
+transit_ridersip: 1690120
+vmt_per_capita: 16.020296362912525
+vmt_per_capita_county:
+  Alameda: 15.76752768243539
+  Contra Costa: 19.921710336303093
+  Marin: 18.67186362116169
+  Napa: 19.421121549053815
+  San Francisco: 8.446525647538394
+  San Mateo: 16.64330837658484
+  Santa Clara: 15.031630406828864
+  Solano: 19.868300786201203
+  Sonoma: 17.54461203051367
+vmt_per_capita_hispanic:
+  hispanic: 13.345916744687706
+  non_hispanic: 16.784097440751207
+vmt_per_capita_income:
+  high: 18.441611551293803
+  low: 13.183765397352238
+  middle: 18.336216061081924
+vmt_per_capita_race:
+  asian: 15.372575660834498
+  black: 14.184755099504835
+  other: 13.214752397612825
+  white: 17.13096526016448

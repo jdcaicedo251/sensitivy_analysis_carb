@@ -1,0 +1,62 @@
+#### Resutls mapping
+transit_frequency:
+    scenario_1: 2
+    scenario_2: 1
+    scenario_3: -0.25
+    scenario_4: -0.50
+transit_price:
+    scenario_1: 0.50
+    scenario_2: -0.25
+    scenario_3: -0.50
+    scenario_4: -1.0
+transit_speed:
+    scenario_1: -0.25
+tnc_price:
+    scenario_1: 0.5
+    scenario_2: 0.25
+    scenario_3: -0.25
+    scenario_4: -0.50
+share_tnc_price:
+    scenario_1: 0.5
+    scenario_2: 0.25
+    scenario_3: -0.25
+    scenario_4: -0.50
+operating_cost:
+    scenario_1: 1.0
+    scenario_2: 0.5
+    scenario_3: -0.25
+    scenario_4: -0.50
+cordon_pricing:
+    scenario_1: 0.25
+    scenario_2: 0.10
+    scenario_3: -0.25
+    scenario_4: -0.50
+park_ride:
+    scenario_1: 0.50
+    scenario_2: 0.25
+    scenario_3: -0.25
+    scenario_4: -0.50
+telecommute_option:
+    scenario_1: 0.50
+    scenario_2: 0.25
+    scenario_3: -0.25
+    scenario_4: -0.50
+telecommute_frequency:
+    scenario_1: -1.0
+    scenario_2: -0.5
+    scenario_3: 1.0
+    scenario_4: 2.0
+av_rates:
+    scenario_1: 0.05
+    scenario_2: 0.10
+    scenario_3: 0.25
+    scenario_4: 0.50
+av_vot:
+    scenario_1: -0.10
+    scenario_2: -0.20
+    scenario_3: -0.40
+    scenario_4: -0.60
+tod:
+    scenario_1: 0.10
+    scenario_2: 0.25
+    scenario_3: 0.50
