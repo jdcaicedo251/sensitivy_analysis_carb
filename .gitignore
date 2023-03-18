@@ -1,0 +1,8 @@
+.DS_Store
+.ipynb_checkpoints
+__pycache__/
+
+notebooks/skims/
+notebooks/blocks_sf
+notebooks/custom_mpo_06197001_model_data.h5
+tmp/

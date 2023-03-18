@@ -36,11 +36,11 @@ park_ride:
     scenario_2: 0.25
     scenario_3: -0.25
     scenario_4: -0.50
-telecommute_option:
-    scenario_1: 0.50
-    scenario_2: 0.25
-    scenario_3: -0.25
-    scenario_4: -0.50
+# telecommute_option:
+#     scenario_1: 0.50
+#     scenario_2: 0.25
+#     scenario_3: -0.25
+#     scenario_4: -0.50
 telecommute_frequency:
     scenario_1: -1.0
     scenario_2: -0.5

@@ -125,6 +125,7 @@ def scenario_elasticities(df):
     """
     metrics = df[df.columns[df.columns.str.contains('_metric')]]
     change = df[df.columns[df.columns.str.contains('_%change')]].values
+    change = 2 * (change) / (change + 2) # same as 2 * (factor -  1)/(factor + 1). Factor = 1 + change
     baseline = df['base_line']
 
     elasticity = (metrics.div(baseline, axis = 0) - 1).div(change, axis = 'columns')
@@ -226,20 +227,6 @@ if __name__ == '__main__':
 
     policy_scenarios= kpi.read_yaml('policies.yaml')
     policy_changes = kpi.read_yaml('policy_changes.yaml')
-
-#     policy_scenarios = {'policy_one': {'base_line':'ex_1',
-#                                        'scenario_1':'ex_2',
-#                                        'scenario_2':'ex_3'},
-#                         'policy_two': {'base_line':'ex_1',
-#                                        'scenario_1':'ex_4',
-#                                        'scenario_2':'ex_5'}}
-
-#     policy_changes = {'policy_one': {'scenario_1':0.25,
-#                                      'scenario_2':-0.25},
-#                       'policy_two': {'scenario_1':0.1,
-#                                      'scenario_2':0.25}}
-
-
 
     metrics_list = []
     for policy, scenarios in policy_scenarios.items():

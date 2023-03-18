@@ -1,6 +1,6 @@
 #### Resutls mapping
 transit_frequency:
-    base_line: 01_base_000
+    base_line: 52_base_000
     scenario_1: 02_transit_frequencies_+200
     scenario_2: 03_transit_frequencies_+100
     scenario_3: 04_transit_frequencies_-025
@@ -44,12 +44,12 @@ park_ride:
     scenario_2: 29_park_ride_+025
     scenario_3: 30_park_ride_-025
     scenario_4: 31_park_ride_-050
-telecommute_option:
-    base_line: 01_base_000
-    scenario_1: 32_telecommute_option_+050
-    scenario_2: 33_telecommute_option_+025
-    scenario_3: 34_telecommute_option_-025
-    scenario_4: 35_telecommute_option_-050
+# telecommute_option:
+#     base_line: 01_base_000
+#     scenario_1: 32_telecommute_option_+050
+#     scenario_2: 33_telecommute_option_+025
+#     scenario_3: 34_telecommute_option_-025
+#     scenario_4: 35_telecommute_option_-050
 telecommute_frequency:
     base_line: 01_base_000
     scenario_1: 36_telecommute_frequency_000
