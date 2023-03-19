@@ -107,3 +107,12 @@ county_mapping:
     6095: Solano
     6097: Sonoma
     
+area_type:
+    0: Urban
+    1: Urban
+    2: Urban
+    3: Urban
+    4: Suburban
+    5: Rural
+    
+    

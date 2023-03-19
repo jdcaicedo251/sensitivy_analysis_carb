@@ -1,15 +1,96 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# # Re-estimate KPIs 
+# 
+# There are some improvements and changes that are done to the KPIs, and I need to re-estimate some of them. However, all the data to re-estimate them is in the AWS S3 Buckets, and it is very expensive to download all. The idea of this code is to automate the process to estimate and just let it run. 
+# 
+# For each policy:
+# 
+# - Download trips, households, persons, and skims tables
+# - Run kpy.py
+# - Convert result in yaml file
+# - Upload modified results to S3 Bucket
+
+# In[1]:
+
+
 import os
 import re
 import sys
 import yaml
-import pandas as pd
+import time
+import boto3
+import logging
 import numpy as np
+import pandas as pd
 import openmatrix as omx
 
-import logging
-logging.basicConfig(level=logging.INFO, stream=sys.stdout,
-                    format='%(asctime)s %(name)s - %(levelname)s - %(message)s',
-                    datefmt='%m/%d/%Y %I:%M:%S %p')
+logging.basicConfig(
+    stream=sys.stdout, level=logging.INFO,
+    format='%(asctime)s %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+
+# In[2]:
+
+
+s3 = boto3.client("s3")
+def read_csv(fpath, index_col = None, dytpe = None):
+    bucket_name = "carb-results"
+    obj = s3.get_object(Bucket = bucket_name, Key = fpath)
+    
+    return pd.read_csv(obj['Body'], index_col = index_col, dtype = dytpe)
+
+def download_s3(local_file_name,s3_bucket,s3_object_key):
+    """
+    reference:
+    https://stackoverflow.com/questions/41827963/
+    track-download-progress-of-s3-file-using-boto3-and-callbacks
+    """
+
+    meta_data = s3.head_object(Bucket=s3_bucket, Key=s3_object_key)
+    total_length = int(meta_data.get('ContentLength', 0))
+    downloaded = 0
+
+    def progress(chunk):
+        nonlocal downloaded
+        downloaded += chunk
+        done = int(50 * downloaded / total_length)
+        sys.stdout.write("\r[%s%s]" % ('=' * done, ' ' * (50-done)) )
+        sys.stdout.flush()
+
+    logger.info(f'Downloading {s3_object_key}')
+    with open(local_file_name, 'wb') as f:
+        s3.download_fileobj(s3_bucket, s3_object_key, f, Callback=progress)
+        
+def upload_file_s3(file_name, bucket, object_name=None):
+    """Upload a file to an S3 bucket
+
+    :param file_name: File to upload
+    :param bucket: Bucket to upload to
+    :param object_name: S3 object name. If not specified then file_name is used
+    :return: True if file was uploaded, else False
+
+    reference: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-uploading-files.html
+    """
+
+    # If S3 object_name was not specified, use file_name
+    if object_name is None:
+        object_name = os.path.basename(file_name)
+
+    # Upload the file
+    s3_client = boto3.client('s3')
+    try:
+        response = s3_client.upload_file(file_name, bucket, object_name)
+    except ClientError as e:
+        logging.error(e)
+        return False
+    return True
+
+
+# In[15]:
+
 
 ###############
 ### UTILS ####
@@ -185,28 +266,16 @@ def time_skims(skims):
             driving_skims.append(time_mtx)
 
         for mode in transit_modes:
-            walk_time_skim = (np.array(skims['WLK_{0}_WLK_WAIT__{1}'.format(mode, period)]) +\
-             np.array(skims['WLK_{0}_WLK_IWAIT__{1}'.format(mode, period)]) +\
-             np.array(skims['WLK_{0}_WLK_XWAIT__{1}'.format(mode, period)]) +\
-             np.array(skims['WLK_{0}_WLK_WAUX__{1}'.format(mode, period)]) +\
-             np.array(skims['WLK_{0}_WLK_TOTIVT__{1}'.format(mode, period)]))/100
+            walk_time_skim = (np.array(skims['WLK_{0}_WLK_WAIT__{1}'.format(mode, period)]) +             np.array(skims['WLK_{0}_WLK_IWAIT__{1}'.format(mode, period)]) +             np.array(skims['WLK_{0}_WLK_XWAIT__{1}'.format(mode, period)]) +             np.array(skims['WLK_{0}_WLK_WAUX__{1}'.format(mode, period)]) +             np.array(skims['WLK_{0}_WLK_TOTIVT__{1}'.format(mode, period)]))/100
             walk_transit.append(walk_time_skim)
 
-            drive_time_skim = (np.array(skims['DRV_{0}_WLK_DTIM__{1}'.format(mode, period)]) +\
-             np.array(skims['DRV_{0}_WLK_IWAIT__{1}'.format(mode, period)]) +\
-             np.array(skims['DRV_{0}_WLK_XWAIT__{1}'.format(mode, period)]) +\
-             np.array(skims['DRV_{0}_WLK_WAUX__{1}'.format(mode, period)]) +\
-             np.array(skims['DRV_{0}_WLK_TOTIVT__{1}'.format(mode, period)]))/100
+            drive_time_skim = (np.array(skims['DRV_{0}_WLK_DTIM__{1}'.format(mode, period)]) +             np.array(skims['DRV_{0}_WLK_IWAIT__{1}'.format(mode, period)]) +             np.array(skims['DRV_{0}_WLK_XWAIT__{1}'.format(mode, period)]) +             np.array(skims['DRV_{0}_WLK_WAUX__{1}'.format(mode, period)]) +             np.array(skims['DRV_{0}_WLK_TOTIVT__{1}'.format(mode, period)]))/100
             drive_transit.append(drive_time_skim)
 
         bike_time = np.array(skims['DISTBIKE'])*60/12 #12 miles/hour
         walk_time = np.array(skims['DISTWALK'])*60/3 #3 miles/hour
 
-        period_time_skims = np.stack((driving_skims + \
-                                      [walk_time] + \
-                                      [bike_time] + \
-                                      walk_transit + \
-                                      drive_transit))
+        period_time_skims = np.stack((driving_skims +                                       [walk_time] +                                       [bike_time] +                                       walk_transit +                                       drive_transit))
 
         time_skims.append(period_time_skims)
 
@@ -250,7 +319,7 @@ def driving_skims(skims):
 
     return np.stack(time_skims)
 
-def add_results_variables(settings, trips, households, persons, skims):
+def add_results_variables(settings, trips, households, persons, skims, land_use):
     # trip_ids = [ 504934577, 1751074894, 1777578817, 1456859106,  603528097,
     #         1976026805,  533494525,  289144125, 1633307365, 1638300725,
     #         1467097413,  157430480, 1940255009,  914568381,  523906186,
@@ -271,6 +340,7 @@ def add_results_variables(settings, trips, households, persons, skims):
     ivt_mapping = settings['ivt_mapping']
     hispanic = settings['hispanic']
     county_mapping = settings['county_mapping']
+    area_type = settings['area_type']
 
     df['dist_miles'] = od_matrix_lookup(df.origin, df.destination, dist)
     df['carb_mode'] = df.trip_mode.replace(carb_mode_mapping)
@@ -294,18 +364,24 @@ def add_results_variables(settings, trips, households, persons, skims):
     df['VMT'] = df.VMT.mask(df.trip_mode.isin(['TNC_SINGLE']), df.dist_miles)
     df['VMT'] = df.VMT.mask(df.trip_mode.isin(['TNC_SHARED']), df.dist_miles/2.5)
     df['VMT'] = df.VMT.mask(df.trip_mode.isin(['TAXI']), df.dist_miles)
+    
+    land_use['area_type'] = land_use['area_type'].replace(area_type)
 
     # Add Trips Variables
     df['c_ivt'] = df['primary_purpose'].replace(ivt_mapping)
 
     #Add socio-economic variables
-    df_trips = df.merge(households[['income','lcm_county_id']], how = 'left',
+    df_trips = df.merge(households[['income','lcm_county_id', 'TAZ']], how = 'left',
             left_on = 'household_id', right_index = True)
 
     df_trips = df_trips.merge(persons[['race','hispanic','value_of_time']], how = 'left',
                          left_on = 'person_id', right_index = True)
+    
+    df_trips = df_trips.merge(land_use[['area_type']], how = 'left', 
+                             left_on = 'TAZ', right_index = True)
+    
 
-    print('Mean TRIP VOT: {}'.format(df_trips['value_of_time'].mean()))
+#     print('Mean TRIP VOT: {}'.format(df_trips['value_of_time'].mean()))
 
     df_trips['income_category'] = pd.cut(df_trips.income,
                                          [-np.inf, 80000, 150000, np.inf],
@@ -324,6 +400,9 @@ def add_results_variables(settings, trips, households, persons, skims):
                                   how = 'left',
                                   left_on = 'household_id',
                                   right_index = True)
+    
+    df_persons = df_persons.merge(land_use[['area_type']], how = 'left', 
+                             left_on = 'TAZ', right_index = True)
 
     df_persons['income_category'] = pd.cut(df_persons.income,
                                          [-np.inf, 80000, 150000, np.inf],
@@ -331,12 +410,12 @@ def add_results_variables(settings, trips, households, persons, skims):
     df_persons['lcm_county_id'] = df_persons['lcm_county_id'].replace(county_mapping)
     df_persons['hispanic'] = df_persons['hispanic'].replace(hispanic)
 
-    print('Trips shape, after merging: {}'.format(df_trips.shape))
-    print('Persons shape after merging: {}'.format(df_persons.shape))
-    print('Sum of c_cost: {}'.format(df_trips['c_cost'].sum()))
-    print('Sum of c_ivt: {}'.format(df_trips['c_ivt'].sum()))
-    print('Sum of value of time: {}'.format(df_trips['value_of_time'].sum()))
-    print('Sum of cs: {}'.format(df_trips['cs'].sum()))
+#     print('Trips shape, after merging: {}'.format(df_trips.shape))
+#     print('Persons shape after merging: {}'.format(df_persons.shape))
+#     print('Sum of c_cost: {}'.format(df_trips['c_cost'].sum()))
+#     print('Sum of c_ivt: {}'.format(df_trips['c_ivt'].sum()))
+#     print('Sum of value of time: {}'.format(df_trips['value_of_time'].sum()))
+#     print('Sum of cs: {}'.format(df_trips['cs'].sum()))
     return df_trips, df_persons
 
 ############################
@@ -385,11 +464,17 @@ def vmt_per_capita_county(trips, persons):
     kpi = total_segment.div(persons_segment, axis = 0)
     return kpi.to_dict()['VMT']
 
+def vmt_per_capita_urban(trips, persons):
+    logging.info('Calulating VMT per capita by urban classification...')
+    persons_segment = persons.groupby('area_type')['PNUM'].count()
+    total_segment = trips.groupby('area_type').agg({'VMT':'sum'})
+    kpi = total_segment.div(persons_segment, axis = 0)
+    return kpi.to_dict()['VMT']
+
 ## Consumer Surplus ##
 ######################
 def total_consumer_surplus(df):
     logging.info('Calulating consumer surplus...')
-    print(float(df['cs'].sum()))
     return float(df['cs'].sum())
 
 def consumer_surplus_per_capita(trips, persons):
@@ -426,6 +511,13 @@ def consumer_surplus_per_capita_county(trips, persons):
     kpi = total_segment.div(persons_segment, axis = 0)
     return kpi.to_dict()['cs']
 
+def consumer_surplus_per_capita_urban(trips, persons):
+    logging.info('Calulating average consumer surplus by county...')
+    persons_segment = persons.groupby('area_type')['PNUM'].count()
+    total_segment = trips.groupby('area_type').agg({'cs':'sum'})
+    kpi = total_segment.div(persons_segment, axis = 0)
+    return kpi.to_dict()['cs']
+
 
 ## others ##
 ############
@@ -436,6 +528,11 @@ def transit_ridersip(trips):
 def mode_shares(trips):
     logging.info('Calulating mode shares...')
     ms = trips.carb_mode.value_counts(normalize=True)
+    return ms.to_dict()
+
+def mode_shares_trips(trips):
+    logging.info('Calulating mode shares trips...')
+    ms = trips.carb_mode.value_counts(normalize=False)
     return ms.to_dict()
 
 def average_vehicle_ownership(households):
@@ -469,118 +566,11 @@ def average_commute_trip_lenght(trips):
     s = trips.groupby('carb_mode').agg({'dist_miles':'mean'})
     return s.to_dict()['dist_miles']
 
-def get_scenario_results(policy, scenario, scenario_id):
-    logging.info('Saving policy scenario resutls')
-
-    #Important tables
-    households = pd.read_csv('tmp/{}/households.csv'.format(scenario), index_col = 'household_id')
-    persons = pd.read_csv('tmp/{}/persons.csv'.format(scenario), index_col = 'person_id')
-    trips = pd.read_csv('tmp/{}/trips.csv'.format(scenario), index_col = 'trip_id',
-                       dtype = {'origin':int, 'destination':int})
-    skims = omx.open_file('tmp/{}/skims.omx'.format(scenario), 'r')
-    mapping = read_yaml('mapping.yaml')
-
-    trips , persons = add_results_variables(mapping, trips, households, persons, skims)
-
-    dict_results = {}
-    dict_results['policy'] = policy
-    dict_results['name'] = scenario_id
-
-    #Vmt KPIS
-    dict_results['total_vmt'] = total_vmt(trips)
-    dict_results['vmt_per_capita'] = vmt_per_capita(trips, persons)
-    dict_results['vmt_per_capita_income'] = vmt_per_capita_income(trips, persons)
-    dict_results['vmt_per_capita_race'] = vmt_per_capita_race(trips, persons)
-    dict_results['vmt_per_capita_hispanic'] = vmt_per_capita_hispanic(trips, persons)
-    dict_results['vmt_per_capita_county'] = vmt_per_capita_county(trips, persons)
-
-    #Consumer Surplus KPIs
-    dict_results['total_cs'] = total_consumer_surplus(trips)
-    dict_results['cs_per_capita'] = consumer_surplus_per_capita(trips, persons)
-    dict_results['cs_per_capita_income'] = consumer_surplus_per_capita_income(trips, persons)
-    dict_results['cs_per_capita_race'] = consumer_surplus_per_capita_race(trips, persons)
-    dict_results['cs_per_capita_hispanic'] = consumer_surplus_per_capita_hispanic(trips, persons)
-    dict_results['cs_per_capita_county'] = consumer_surplus_per_capita_county(trips, persons)
-
-    #Other
-    dict_results['transit_ridersip'] = transit_ridersip(trips)
-    dict_results['mode_shares'] = mode_shares(trips)
-    dict_results['average_vehicle_ownership'] = average_vehicle_ownership(households)
-    dict_results['seat_utilization'] = seat_utilization(trips)
-    dict_results['average_traveltime_purpose'] = average_traveltime_purpose(trips)
-    dict_results['average_traveltime_mode'] = average_traveltime_mode(trips)
-    dict_results['average_traveltime_income'] = average_traveltime_income(trips)
-    dict_results['average_commute_trip_lenght'] = average_commute_trip_lenght(trips)
-
-    skims.close()
-
-    return dict_results
-
-def kpi_pilates(scenario):
-    logging.info('Saving policy scenario resutls')
-    #Important tables
-    hh_fpath = os.path.join('/Users/juandavidcaicedocastro/tmp', scenario,'final_households.csv')
-    pp_fpath = os.path.join('/Users/juandavidcaicedocastro/tmp', scenario,'final_persons.csv')
-    tt_fpath = os.path.join('/Users/juandavidcaicedocastro/tmp', scenario,'final_trips.csv')
-    ss_fpath = os.path.join('/Users/juandavidcaicedocastro/tmp', scenario,'skims.omx')
-
-    # hh_fpath = os.path.join('pilates','activitysim','output','final_households.csv')
-    # pp_fpath = os.path.join('pilates','activitysim','output','final_persons.csv')
-    # tt_fpath = os.path.join('pilates','activitysim','output','final_trips.csv')
-    # ss_fpath = os.path.join('pilates','activitysim','data','skims.omx')
-
-    households = pd.read_csv(hh_fpath, index_col = 'household_id')
-    persons = pd.read_csv(pp_fpath, index_col = 'person_id')
-    trips = pd.read_csv(tt_fpath, index_col = 'trip_id', dtype = {'origin':int, 'destination':int})
-    skims = omx.open_file(ss_fpath, 'r')
-    mapping = read_yaml('/Users/juandavidcaicedocastro/Dropbox/01_berkeley/22_UrbanSim/github/sensitivy_analysis_carb/mapping.yaml')
-
-    print('Trips shape: {}'.format(trips.shape))
-    print('Households shape: {}'.format(households.shape))
-
-    trips_ , persons_ = add_results_variables(mapping, trips, households, persons, skims)
-
-    dict_results = {}
-    dict_results['policy'] = scenario[3:-5]
-    dict_results['name'] = scenario
-
-    #Vmt KPIS
-    dict_results['total_vmt'] = total_vmt(trips_)
-    dict_results['vmt_per_capita'] = vmt_per_capita(trips_, persons_)
-    dict_results['vmt_per_capita_income'] = vmt_per_capita_income(trips_, persons_)
-    dict_results['vmt_per_capita_race'] = vmt_per_capita_race(trips_, persons_)
-    dict_results['vmt_per_capita_hispanic'] = vmt_per_capita_hispanic(trips_, persons_)
-    dict_results['vmt_per_capita_county'] = vmt_per_capita_county(trips_, persons_)
-
-    #Consumer Surplus KPIs
-    dict_results['total_cs'] = total_consumer_surplus(trips_)
-    dict_results['cs_per_capita'] = consumer_surplus_per_capita(trips_, persons_)
-    dict_results['cs_per_capita_income'] = consumer_surplus_per_capita_income(trips_, persons_)
-    dict_results['cs_per_capita_race'] = consumer_surplus_per_capita_race(trips_, persons_)
-    dict_results['cs_per_capita_hispanic'] = consumer_surplus_per_capita_hispanic(trips_, persons_)
-    dict_results['cs_per_capita_county'] = consumer_surplus_per_capita_county(trips_, persons_)
-
-    #Other
-    dict_results['transit_ridersip'] = transit_ridersip(trips_)
-    dict_results['mode_shares'] = mode_shares(trips_)
-    dict_results['average_vehicle_ownership'] = average_vehicle_ownership(households)
-    dict_results['seat_utilization'] = seat_utilization(trips_)
-    dict_results['average_traveltime_purpose'] = average_traveltime_purpose(trips_)
-    dict_results['average_traveltime_mode'] = average_traveltime_mode(trips_)
-    dict_results['average_traveltime_income'] = average_traveltime_income(trips_)
-    dict_results['average_commute_trip_lenght'] = average_commute_trip_lenght(trips_)
-
-    skims.close()
-
-    return dict_results
-
-def kpi_results_2(scenario, trips, households, persons, skims):
+def kpi_results_test(scenario, trips, households, persons, skims, land_use):
     
-    mapping = read_yaml('mapping.yaml')
-    print('Trips shape: {}'.format(trips.shape))
-    print('Households shape: {}'.format(households.shape))
+    mapping = read_yaml('../mapping.yaml')
     
-    trips_ , persons_ = add_results_variables(mapping, trips, households, persons, skims)
+    trips_ , persons_ = add_results_variables(mapping, trips, households, persons, skims, land_use)
     
     dict_results = {}
     dict_results['policy'] = scenario[3:-5]
@@ -593,6 +583,7 @@ def kpi_results_2(scenario, trips, households, persons, skims):
     dict_results['vmt_per_capita_race'] = vmt_per_capita_race(trips_, persons_)
     dict_results['vmt_per_capita_hispanic'] = vmt_per_capita_hispanic(trips_, persons_)
     dict_results['vmt_per_capita_county'] = vmt_per_capita_county(trips_, persons_)
+    dict_results['vmt_per_capita_urban'] = vmt_per_capita_urban(trips_, persons_)
 
     #Consumer Surplus KPIs
     dict_results['total_cs'] = total_consumer_surplus(trips_)
@@ -601,10 +592,12 @@ def kpi_results_2(scenario, trips, households, persons, skims):
     dict_results['cs_per_capita_race'] = consumer_surplus_per_capita_race(trips_, persons_)
     dict_results['cs_per_capita_hispanic'] = consumer_surplus_per_capita_hispanic(trips_, persons_)
     dict_results['cs_per_capita_county'] = consumer_surplus_per_capita_county(trips_, persons_)
+    dict_results['cs_per_capita_urban'] = consumer_surplus_per_capita_urban(trips_, persons_)
 
     #Other
     dict_results['transit_ridersip'] = transit_ridersip(trips_)
     dict_results['mode_shares'] = mode_shares(trips_)
+    dict_results['mode_shares_trips'] = mode_shares_trips(trips_)
     dict_results['average_vehicle_ownership'] = average_vehicle_ownership(households)
     dict_results['seat_utilization'] = seat_utilization(trips_)
     dict_results['average_traveltime_purpose'] = average_traveltime_purpose(trips_)
@@ -613,7 +606,70 @@ def kpi_results_2(scenario, trips, households, persons, skims):
     dict_results['average_commute_trip_lenght'] = average_commute_trip_lenght(trips_)
 
     return dict_results
+
+
+# # Re-estimate KPI
+
+# In[ ]:
+
+
+def rewrite_kpi(scenario):
     
+    #Read trips table
+    trips_fpath = os.path.join(scenario, "final_trips.csv")
+    trips = read_csv(trips_fpath, index_col = 'trip_id', dytpe = {'origin':int, 'destination':int} )
     
+    # Read households table
+    households_fpath = os.path.join(scenario, "final_households.csv")
+    households = read_csv(households_fpath, index_col = 'household_id')
     
+    # Read persons Table
+    persons_fpath = os.path.join(scenario, "final_persons.csv")
+    persons = read_csv(persons_fpath, index_col = 'person_id')
     
+    # Read skims
+    skims_fpath = f"../skims/{scenario}_skims.omx"
+    download_s3(skims_fpath, 'carb-results', f"{scenario}/skims.omx")
+    skims = omx.open_file(skims_fpath, mode = 'r')
+    
+    # Read land use table
+    land_use_fpath = os.path.join(scenario, "final_land_use.csv")
+    land_use = read_csv(land_use_fpath, index_col = 'TAZ')
+    
+    # Re-estimate results 
+    results = kpi_results_test(scenario, trips, households, persons, skims, land_use)
+    
+    # Save yaml 
+    yaml_fpath = f"updated_kpi_{scenario}.yaml"
+    save_yaml(yaml_fpath, results)
+
+    #Upload to S3 Bucket
+    s3_name = f"{scenario}/{yaml_fpath}"
+    upload_file_s3(yaml_fpath, bucket = 'carb-results', object_name=s3_name)
+
+
+# In[ ]:
+
+
+scenarios = pd.Series(os.listdir('../kpis'))
+scenarios = scenarios[scenarios.str.contains('.yaml')].str[4:-5]
+scenarios = list(scenarios.sort_values())
+
+
+# In[ ]:
+
+
+for scenario in scenarios[31:]:
+    print(f'Re-estiamting scenario {scenario}')
+    start = time.time()
+    rewrite_kpi(scenario)
+    end = time.time()
+    print(f"Time: {end - start:.2f} seconds")
+    print("")
+
+
+# In[ ]:
+
+
+
+
